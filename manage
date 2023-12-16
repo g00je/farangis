@@ -1,0 +1,14 @@
+#!/bin/bash
+
+# active the python venv if is not active already.
+if [[ -z $VIRTUAL_ENV ]]; then
+    source .env/bin/activate
+fi
+
+clear
+
+case $1 in
+run)
+    DEBUG=1 uvicorn main:app --reload --port 7006 --use-colors
+    ;;
+esac

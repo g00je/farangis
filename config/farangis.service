@@ -1,0 +1,15 @@
+[Unit]
+Description=Farangis Gunner
+After=syslog.target
+
+[Service]
+ExecStart=/g00je/farangis/.env/bin/gunicorn --config /g00je/farangis/config/gunicorn.py
+RuntimeDirectory=g00je_farangis_gun
+Restart=always
+KillSignal=SIGQUIT
+Type=notify
+StandardError=syslog
+NotifyAccess=all
+
+[Install]
+WantedBy=multi-user.target
