@@ -4,7 +4,7 @@ import ctypes
 import zlib
 
 from fastapi import APIRouter, Request, Response, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, conint
 
 from deps import auth_required
@@ -61,7 +61,6 @@ async def record_create(request: Request, file: UploadFile):
 
 @router.delete('/{record_id}/', openapi_extra={'errors': [ErrNotFound]})
 async def record_delete(request: Request, record_id: RecordId):
-
     filename = record_id.to_bytes(4, byteorder=config.byte_order).hex()
     config.records_idx.pop(record_id, None)
     config.records_free.add(record_id)
@@ -81,7 +80,6 @@ async def record_delete(request: Request, record_id: RecordId):
     openapi_extra={'errors': [ErrNotFound]}
 )
 async def record_replace(request: Request, record_id: RecordId, file: UploadFile):
-
     if (
         record_id not in config.records_idx and
         record_id not in config.records_free
@@ -111,8 +109,8 @@ async def record_replace(request: Request, record_id: RecordId, file: UploadFile
 
 
 @router.get(
-    '/{record_id}/', response_class=FileResponse,
-    openapi_extra={'errors': [ErrNotFound]}
+    '/{record_id}/', response_class=StreamingResponse,
+    openapi_extra={'errors': [ErrNotFound]},
 )
 async def record_get(request: Request, record_id: RecordId):
     filename = record_id.to_bytes(4, byteorder=config.byte_order).hex()
@@ -121,5 +119,9 @@ async def record_get(request: Request, record_id: RecordId):
     if record_id in config.records_free or not path.is_file():
         raise ErrNotFound
 
+    def stream():
+        with open(path, 'rb') as f:
+            yield f.read(8196)
+
     checksum = str(config.records_idx.get(record_id, ''))
-    return FileResponse(path, headers={'x-checksum': checksum})
+    return StreamingResponse(stream(), headers={'x-checksum': checksum})
