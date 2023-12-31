@@ -67,7 +67,7 @@ async def record_delete(request: Request, record_id: RecordId):
 
     path = config.records_dir / filename
     if not path.is_file():
-        raise ErrNotFound
+        raise ErrNotFound(item='Record')
 
     # write 0 bytes to the file
     open(path, 'wb').close()
@@ -80,11 +80,12 @@ async def record_delete(request: Request, record_id: RecordId):
     openapi_extra={'errors': [ErrNotFound]}
 )
 async def record_replace(request: Request, record_id: RecordId, file: UploadFile):
+    print(config.records_idx, config.records_free)
     if (
         record_id not in config.records_idx and
         record_id not in config.records_free
     ):
-        raise ErrNotFound
+        raise ErrNotFound(item='Record')
 
     filename = record_id.to_bytes(4, byteorder=config.byte_order).hex()
 
@@ -117,7 +118,7 @@ async def record_get(request: Request, record_id: RecordId):
     path = config.records_dir / filename
 
     if record_id in config.records_free or not path.is_file():
-        raise ErrNotFound
+        raise ErrNotFound(item='Record')
 
     def stream():
         with open(path, 'rb') as f:

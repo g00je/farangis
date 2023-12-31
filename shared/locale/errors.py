@@ -12,12 +12,11 @@ class ErrBase(Exception):
     headers = {}
     extra: dict = None
 
-    def __init__(self, headers: dict = None, extra: dict = None):
+    def __init__(self, headers: dict = None, **extra: dict):
         if headers is not None:
             self.headers = headers
 
-        if extra is not None:
-            self.extra = extra
+        self.extra = extra
 
     @classmethod
     def schema(cls):
