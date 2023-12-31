@@ -9,15 +9,13 @@ from fastapi.routing import APIRoute
 from fastapi.staticfiles import StaticFiles
 
 import api
-from deps import auth_required
 from shared import config, settings
-from shared.errors import Error, all_errors
+from shared.locale import ErrBase, all_errors
 
 app = FastAPI(
     title='Farangis',
     version=config.version,
     description='**Farangis api documents**',
-    # dependencies=[auth_required()]
 )
 
 
@@ -28,14 +26,17 @@ if settings.debug:
     app.mount('/static', StaticFiles(directory='static'), name='static')
 
 
-@app.exception_handler(Error)
-async def error_exception_handler(request, exc: Error):
-    return exc.json()
+with open(config.base_dir / 'static/rapidoc.html', 'r') as f:
+    RAPIDOC = f.read()
+
+
+@app.exception_handler(ErrBase)
+async def error_exception_handler(request, exc: ErrBase):
+    return exc.json(request)
 
 
 @app.on_event('startup')
 async def startup():
-
     big = 1
     for file in config.records_dir.iterdir():
         if not file.is_file():
@@ -64,15 +65,7 @@ async def shutdown():
 
 @app.get('/rapidoc/', include_in_schema=False)
 async def rapidoc():
-    return HTMLResponse('''<!doctype html>
-    <html><head><meta charset="utf-8">
-    <script type="module" src="/static/rapidoc.js"></script></head><body>
-    <rapi-doc spec-url="/openapi.json" persist-auth="true"
-    bg-color="#040404" text-color="#f2f2f2" header-color="#040404"
-    primary-color="#ff8800" nav-text-color="#eee" font-size="largest"
-    allow-spec-url-load="false" allow-spec-file-load="false"
-    show-method-in-nav-bar="as-colored-block" response-area-height="500px"
-    show-header="false" schema-expand-level="1" /></body> </html>''')
+    return HTMLResponse(RAPIDOC)
 
 
 for route in app.routes:
@@ -92,7 +85,7 @@ for route in app.routes:
 
     for e in errors:
         route.responses[e.code] = {
-            'description': f'{e.title} - {e.status}',
+            'description': f'{e.messages().subject} - {e.status}',
             'content': {
                 'application/json': {
                     'schema': {
@@ -117,7 +110,7 @@ def custom_openapi():
     schema['errors'] = {}
 
     for e in all_errors:
-        schema['errors'][e.code] = e.schema
+        schema['errors'][e.code] = e.schema()
 
     app.openapi_schema = schema
     return app.openapi_schema

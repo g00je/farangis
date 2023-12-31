@@ -4,16 +4,19 @@
 from fastapi import Depends, Request
 from fastapi.security import APIKeyHeader
 
-from shared.errors import forbidden
+from shared import settings
+from shared.locale import ErrBadAuth, ErrForbidden
 
-token_schema = APIKeyHeader(name='Auth-Token', description='Master Token')
+token_schema = APIKeyHeader(name='Authorization', description='Master Token')
 
 
 def auth_required():
     '''auth token is required'''
 
     async def decorator(request: Request, token=Depends(token_schema)):
-        print(token)
+        if token != settings.farangis_api_key:
+            raise ErrBadAuth
+
         forwarded = request.headers.get('X-Forwarded-For')
 
         if forwarded:
@@ -21,8 +24,10 @@ def auth_required():
         else:
             ip = request.client.host
 
-        print(f'{ip=}')
+        # TODO: use nginx to block ip's
+        if ip != '127.0.0.1':
+            raise ErrForbidden
 
     dep = Depends(decorator)
-    dep.errors = [forbidden]
+    dep.errors = [ErrBadAuth, ErrForbidden]
     return dep

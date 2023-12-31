@@ -7,11 +7,14 @@ from fastapi import APIRouter, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, conint
 
+from deps import auth_required
 from shared import config
+from shared.locale import ErrNotFound
 
 router = APIRouter(
     prefix='/api/records',
-    tags=['Record']
+    tags=['Record'],
+    dependencies=[auth_required()]
 )
 
 
@@ -56,7 +59,7 @@ async def record_create(request: Request, file: UploadFile):
     }
 
 
-@router.delete('/{record_id}/')
+@router.delete('/{record_id}/', openapi_extra={'errors': [ErrNotFound]})
 async def record_delete(request: Request, record_id: RecordId):
 
     filename = record_id.to_bytes(4, byteorder=config.byte_order).hex()
@@ -65,7 +68,7 @@ async def record_delete(request: Request, record_id: RecordId):
 
     path = config.records_dir / filename
     if not path.is_file():
-        return Response(status_code=404)
+        raise ErrNotFound
 
     # write 0 bytes to the file
     open(path, 'wb').close()
@@ -73,14 +76,17 @@ async def record_delete(request: Request, record_id: RecordId):
     return Response(status_code=200)
 
 
-@router.put('/{record_id}/', response_model=SubmitResult)
+@router.put(
+    '/{record_id}/', response_model=SubmitResult,
+    openapi_extra={'errors': [ErrNotFound]}
+)
 async def record_replace(request: Request, record_id: RecordId, file: UploadFile):
 
     if (
         record_id not in config.records_idx and
         record_id not in config.records_free
     ):
-        return Response(status_code=404)
+        raise ErrNotFound
 
     filename = record_id.to_bytes(4, byteorder=config.byte_order).hex()
 
@@ -104,13 +110,16 @@ async def record_replace(request: Request, record_id: RecordId, file: UploadFile
     }
 
 
-@router.get('/{record_id}/', response_class=FileResponse)
+@router.get(
+    '/{record_id}/', response_class=FileResponse,
+    openapi_extra={'errors': [ErrNotFound]}
+)
 async def record_get(request: Request, record_id: RecordId):
     filename = record_id.to_bytes(4, byteorder=config.byte_order).hex()
     path = config.records_dir / filename
 
     if record_id in config.records_free or not path.is_file():
-        return Response(status_code=404)
+        raise ErrNotFound
 
     checksum = str(config.records_idx.get(record_id, ''))
     return FileResponse(path, headers={'x-checksum': checksum})
