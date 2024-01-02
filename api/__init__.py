@@ -1,5 +1,4 @@
 
-
 import ctypes
 import zlib
 
@@ -80,7 +79,6 @@ async def record_delete(request: Request, record_id: RecordId):
     openapi_extra={'errors': [ErrNotFound]}
 )
 async def record_replace(request: Request, record_id: RecordId, file: UploadFile):
-    print(config.records_idx, config.records_free)
     if (
         record_id not in config.records_idx and
         record_id not in config.records_free
