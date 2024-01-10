@@ -35,34 +35,6 @@ async def error_exception_handler(request, exc: ErrBase):
     return exc.json(request)
 
 
-@app.on_event('startup')
-async def startup():
-    big = 1
-    for file in config.records_dir.iterdir():
-        if not file.is_file():
-            continue
-
-        idx = int.from_bytes(bytes.fromhex(file.name), config.byte_order)
-        if idx > big:
-            big = idx
-
-        with open(file, 'rb') as f:
-            if not f.seek(0, os.SEEK_END):
-                config.records_free.add(idx)
-                continue
-
-            checksum = zlib.adler32(f.read(4096))
-
-        config.records_idx[idx] = checksum
-
-    config.records_idx['big'] = big
-
-
-@app.on_event('shutdown')
-async def shutdown():
-    pass
-
-
 @app.get('/rapidoc/', include_in_schema=False)
 async def rapidoc():
     return HTMLResponse(RAPIDOC)
